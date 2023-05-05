@@ -1,8 +1,16 @@
 const express = require("express")
 const router = express.Router()
 const bcrypt = require("bcrypt")
+const nodemailer = require("nodemailer")
+const {v4: uuidv4} = require("uuid")
+require("dotenv").config();
+const {google} = require("googleapis")
+const OAuth2 = google.auth.OAuth2
 
 const User = require("./../models/User")
+const UserVerification = require("./../models/UserVerification")
+
+
 
 router.post("/signup", (req,res) =>{
     let {name, email, password, phone} = req.body
@@ -46,7 +54,8 @@ router.post("/signup", (req,res) =>{
                         name,
                         email,
                         password : hashedPassword,
-                        phone
+                        phone,
+                        verified: false,
                     })
 
                     newUser.save().then( result =>{
@@ -90,6 +99,7 @@ router.post("/signin", (req,res) =>{
         })
     }else{
         User.find({email}).then(data =>{
+            //chequear Verificado con && data[0].verified
             if(data){
                 const hashedPassword = data[0].password
                 bcrypt.compare(password, hashedPassword).then(result =>{
