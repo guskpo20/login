@@ -99,14 +99,23 @@ router.post("/signup", (req,res) =>{
 
 const sendVerificationEmail = ({_id, email}, res, route) =>{
     const currentUrl = "http://localhost:8000/"
-
+    let subject ="";
+    let paragraphMessage = "";
+    if(route === "forgot"){
+        subject = "Reset your password!";
+        paragraphMessage ="If you requested a new password please proced with the link, otherwise contact out team and do not click the link.";
+    }else{
+        subject = "Verifiy your email!";
+        paragraphMessage ="Verify your email address to complete the signup and login into your account.";
+    }
+   
     const uniqueString = uuidv4() + _id
     const mailOptions = {
         from: process.env.AUTH_EMAIL,
         to: email,
-        subject: 'Verifiy your email!',
+        subject: subject,
         html: `
-        <p>Verify your email address to complete the signup and login into your account.</p>
+        <p>${paragraphMessage}</p>
         <p>This link <b>expires in 6 hours.</b></p>
         <p>Press <a href="${currentUrl + "user/"+ route +"/" + _id + "/" + uniqueString}">here</a> to proceed</p>`
         
@@ -379,10 +388,10 @@ router.post("/forgot/:userId/:uniqueString", (req,res) =>{
                                 message: "An error ocurred while hashing password"
                             })
                         })
-                       
+                       /*
                        User.findOne({userId}).then(result =>{
                         console.log(result, newPassword)
-                       })
+                       })*/
                        
                     }else{
                         res.json({
