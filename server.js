@@ -8,6 +8,7 @@ const bodyParser = require("express").json
 
 app.use(bodyParser())
 
+
 app.use("/user", UserRouter)
 
 

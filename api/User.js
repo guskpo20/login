@@ -3,8 +3,8 @@ const router = express.Router()
 const bcrypt = require("bcrypt")
 const nodemailer = require("nodemailer")
 require("dotenv").config();
-const {google} = require("googleapis")
 const {v4: uuidv4} = require("uuid")
+const jwt = require("jsonwebtoken")
 
 const User = require("./../models/User")
 const UserVerification = require("./../models/UserVerification")
@@ -23,22 +23,6 @@ auth: {
     pass: process.env.AUTH_PASS
 }
 });
-/*
-let mailOptions = {
-    from: 'tucorreo@gmail.com',
-    to: 'destinatario@gmail.com',
-    subject: 'Asunto del correo',
-    text: 'Cuerpo del correo'
-};
-
-transporter.sendMail(mailOptions, function(error, info) {
-    if (error) {
-        console.log(error);
-    } else {
-        console.log('Correo enviado: ' + info.response);
-    }
-});
-*/
 
 router.post("/signup", (req,res) =>{
     let {name, email, password, phone} = req.body
@@ -89,7 +73,7 @@ router.post("/signup", (req,res) =>{
                     newUser.save().then( result =>{
                         
                         //cargar las opciones del transporter y transporter.sendMail 
-                        sendVerificationEmail(result, res)
+                        sendVerificationEmail(result, res, "verify")
                     }).catch(err =>{
                         res.json({
                             status: "Failed",
@@ -113,7 +97,7 @@ router.post("/signup", (req,res) =>{
     }
 })
 
-const sendVerificationEmail = ({_id, email}, res) =>{
+const sendVerificationEmail = ({_id, email}, res, route) =>{
     const currentUrl = "http://localhost:8000/"
 
     const uniqueString = uuidv4() + _id
@@ -124,7 +108,7 @@ const sendVerificationEmail = ({_id, email}, res) =>{
         html: `
         <p>Verify your email address to complete the signup and login into your account.</p>
         <p>This link <b>expires in 6 hours.</b></p>
-        <p>Press <a href="${currentUrl + "user/verify/" + _id + "/" + uniqueString}">here</a> to proceed</p>`
+        <p>Press <a href="${currentUrl + "user/"+ route +"/" + _id + "/" + uniqueString}">here</a> to proceed</p>`
         
     };
 
@@ -173,10 +157,8 @@ const sendVerificationEmail = ({_id, email}, res) =>{
 //Verify email
 router.get("/verify/:userId/:uniqueString", (req,res) =>{
     let {userId, uniqueString} = req.params;
-    console.log("Por entrar a Verification.find(")
     UserVerification.find({userId})
     .then((result) =>{
-        console.log("Entré!")
         if(result.length > 0){
             const {expiredAt} = result[0];
             const hashedUniqueString = result[0].uniqueString
@@ -287,16 +269,25 @@ router.post("/signin", (req,res) =>{
                     const hashedPassword = data[0].password
                     bcrypt.compare(password, hashedPassword).then(result =>{
                         if(result){
+                            
+                            const _id = data[0]._id
+                            /*const token = jwt.sign(_id, process.env.SECRET_KEY_JWT, {
+                                expiresIn: 60
+                            })*/
+                            /*En el front recibo el token y lo almaceno en algun lugar, cambiar data por un objeto solo con el nombre, email y telefono.*/
                             res.json({
                                 status: "success",
                                 message:"Signin successful",
-                                data: data
+                                data: data,
+                                //token: token
                             })
                         }else{
+                            console.log("No hubo result")
                             res.json({
                                 status: "Failed",
                                 message: "Invalid credentials"
                             })
+                            
                         }
                     }).catch(err =>{
                         res.json({
@@ -319,5 +310,152 @@ router.post("/signin", (req,res) =>{
         })
     }
 })
+
+router.post("/forgot/:userId/:uniqueString", (req,res) =>{
+    let {userId, uniqueString} = req.params;
+    let { newPassword } = req.body
+    UserVerification.findOne({userId})
+    .then((result) =>{
+        if(result){
+            const {expiredAt} = result;
+            const hashedUniqueString = result.uniqueString
+
+            if(expiredAt < Date.now()){
+                UserVerification.deleteOne({userId})
+                .then(result =>{
+                    User.deleteOne({_id: userId})
+                    .then(() =>{
+                        res.json({
+                            status: "Failed",
+                            message: "The link has expired. Please sign up again."
+                        })
+                    })
+                    .catch((err) =>{
+                        res.json({
+                            status: "Failed",
+                            message: "An error ocurred while deleting user verification"
+                        })
+                    })
+                })
+                .catch((err)=>{
+                    res.json({
+                        status: "Failed",
+                        message: "An error ocurred while checking if verification expires"
+                    })
+                })
+            }else{
+                //valid user verification
+                bcrypt.compare(uniqueString, hashedUniqueString)
+                .then(result =>{
+                    if(result){
+                        const saltRounds = 10
+                        bcrypt.hash(newPassword, saltRounds).then(hashedPassword =>{
+                            User.updateOne({_id: userId}, {password: hashedPassword})
+                            .then(() =>{
+                             UserVerification.deleteOne({userId})
+                             .then(() =>{
+                                 res.json({
+                                     status: "Success",
+                                     message: "Password changed!"
+                                 })
+                             })
+                             .catch((err) =>{
+                                 res.json({
+                                     status: "Failed",
+                                     message: "An error ocurred while deleting verification model"
+                                 })
+                             })
+                            })
+                            .catch((err) =>{
+                                 console.log(err)
+                                 res.json({
+                                     status: "Failed",
+                                     message: "An error ocurred while updating verified property"
+                                 })
+                            }) 
+                        }).catch(err =>{
+                            res.json({
+                                status: "Failed",
+                                message: "An error ocurred while hashing password"
+                            })
+                        })
+                       
+                       User.findOne({userId}).then(result =>{
+                        console.log(result, newPassword)
+                       })
+                       
+                    }else{
+                        res.json({
+                            status: "Failed",
+                            message: "Incorrect verification details passed"
+                        })
+                    }
+                })
+                .catch((err) =>{
+                    res.json({
+                        status: "Failed",
+                        message: "Wrong verification email"
+                    })
+                })
+            }
+
+        }else{
+            res.json({
+                status: "Failed",
+                message: "Email already verified or never used"
+            })
+        }
+    }) 
+    .catch((err) =>{
+        console.log(err)
+        res.json({
+            status: "Failed",
+            message: "An error ocurred while verifing email"
+        })
+    })
+})
+
+router.post("/forgot", async (req,res) =>{
+    const {email} = req.body;
+
+    const user = await User.findOne({email})
+    if(!user){
+        res.json({
+            status: "Failed",
+            message: "Invalid credentials"
+        })
+    }
+
+    try {
+        sendVerificationEmail(user, res, "forgot")
+    } catch (err) {
+        console.log(err)
+    }
+})
+
+//Nuevo get "/loggedin" o hacerlo un middleware del signin
+/*
+Le paso a este get el token
+if(!token){
+    no pasa nada, esta deslogeado porque no tiene token
+}else{
+    jwt.verify(token, process.env.SECRET_KEY_JWT, (err, decoded) =>{
+        if(err){
+            res.json("Not authenticated")
+        }else{
+            userId = decoded.id
+        }
+    })
+}
+
+const decoded = verify(token, process.env.SECRET_KEY_JWT)
+const user = await User.findById(decoded.id)
+if(!user){
+    res.json("Not authenticated")
+}else{
+     mandarle los datos para que logee
+}
+*/
+
 
 module.exports = router
