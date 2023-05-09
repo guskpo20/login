@@ -280,15 +280,15 @@ router.post("/signin", (req,res) =>{
                         if(result){
                             
                             const _id = data[0]._id
-                            /*const token = jwt.sign(_id, process.env.SECRET_KEY_JWT, {
+                            const token = jwt.sign({id:_id}, process.env.SECRET_KEY_JWT, {
                                 expiresIn: 60
-                            })*/
+                            })
                             /*En el front recibo el token y lo almaceno en algun lugar, cambiar data por un objeto solo con el nombre, email y telefono.*/
                             res.json({
                                 status: "success",
                                 message:"Signin successful",
                                 data: data,
-                                //token: token
+                                token: token
                             })
                         }else{
                             console.log("No hubo result")
@@ -388,10 +388,6 @@ router.post("/forgot/:userId/:uniqueString", (req,res) =>{
                                 message: "An error ocurred while hashing password"
                             })
                         })
-                       /*
-                       User.findOne({userId}).then(result =>{
-                        console.log(result, newPassword)
-                       })*/
                        
                     }else{
                         res.json({
