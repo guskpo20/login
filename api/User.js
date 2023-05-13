@@ -204,10 +204,11 @@ router.get("/verify/:userId/:uniqueString", (req,res) =>{
                        .then(() =>{
                         UserVerification.deleteOne({userId})
                         .then(() =>{
-                            res.json({
+                            /* res.json({
                                 status: "Success",
                                 message: "Email verified!"
-                            })
+                            }) */
+                            res.redirect("http://127.0.0.1:5173/login")
                         })
                         .catch((err) =>{
                             res.json({
