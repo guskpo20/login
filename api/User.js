@@ -208,7 +208,7 @@ router.get("/verify/:userId/:uniqueString", (req,res) =>{
                                 status: "Success",
                                 message: "Email verified!"
                             }) */
-                            res.redirect("http://127.0.0.1:5173/login")
+                            res.redirect("http://127.0.0.1:5173/verified")
                         })
                         .catch((err) =>{
                             res.json({
