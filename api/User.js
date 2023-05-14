@@ -98,7 +98,7 @@ router.post("/signup", (req,res) =>{
 })
 
 const sendVerificationEmail = ({_id, email}, res, route) =>{
-    const currentUrl = "http://localhost:8000/"
+    const currentUrl = "http://localhost:5173/"
     let subject ="";
     let paragraphMessage = "";
     if(route === "forgot"){
@@ -117,7 +117,7 @@ const sendVerificationEmail = ({_id, email}, res, route) =>{
         html: `
         <p>${paragraphMessage}</p>
         <p>This link <b>expires in 6 hours.</b></p>
-        <p>Press <a href="${currentUrl + "user/"+ route +"/" + _id + "/" + uniqueString}">here</a> to proceed</p>`
+        <p>Press <a href="${currentUrl + "user/"+ route +"/?id=" + _id + "&string=" + uniqueString}">here</a> to proceed</p>`
         
     };
 
@@ -285,14 +285,13 @@ router.post("/signin", (req,res) =>{
                                 expiresIn: 60
                             })
                             /*En el front recibo el token y lo almaceno en algun lugar, cambiar data por un objeto solo con el nombre, email y telefono.*/
-                            res.json({
+                            res.status(200).json({
                                 status: "success",
                                 message:"Signin successful",
                                 data: data,
                                 token: token
                             })
                         }else{
-                            console.log("No hubo result")
                             res.json({
                                 status: "Failed",
                                 message: "Invalid credentials"
@@ -324,6 +323,7 @@ router.post("/signin", (req,res) =>{
 router.post("/forgot/:userId/:uniqueString", (req,res) =>{
     let {userId, uniqueString} = req.params;
     let { newPassword } = req.body
+    console.log(newPassword)
     UserVerification.findOne({userId})
     .then((result) =>{
         if(result){
