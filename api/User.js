@@ -281,9 +281,7 @@ router.post("/signin", (req,res) =>{
                         if(result){
                             
                             const _id = data[0]._id
-                            const token = jwt.sign({id:_id}, process.env.SECRET_KEY_JWT, {
-                                expiresIn: 60
-                            })
+                            const token = jwt.sign({id:_id}, process.env.SECRET_KEY_JWT, {})
                             /*En el front recibo el token y lo almaceno en algun lugar, cambiar data por un objeto solo con el nombre, email y telefono.*/
                             res.status(200).json({
                                 status: "success",
@@ -439,29 +437,36 @@ router.post("/forgot", async (req,res) =>{
     }
 })
 
-//Nuevo get "/loggedin" o hacerlo un middleware del signin
-/*
-Le paso a este get el token
-if(!token){
-    no pasa nada, esta deslogeado porque no tiene token
-}else{
-    jwt.verify(token, process.env.SECRET_KEY_JWT, (err, decoded) =>{
-        if(err){
-            res.json("Not authenticated")
-        }else{
-            userId = decoded.id
+router.post("/verifytoken", async (req,res) =>{
+    const {token} = req.body;
+    if(!token){
+        res.json({
+            status: "Failed",
+            message: "Invalid credentials"
+        })
+    }else{
+        try {
+            const decoded = jwt.verify(token, process.env.SECRET_KEY_JWT)
+            if(decoded){
+                const user = await User.findById(decoded.id)
+                res.json({
+                    status: "Verified!",
+                    message: "Valid token!",
+                    data: {name: user.name, email: user.email, phone: user.phone}
+                })
+            }else{
+                res.json({
+                    status: "Failed",
+                    message: "Invalid token"
+                })
+            }
+        } catch (error) {
+            console.log(error)
         }
-    })
-}
-
-const decoded = verify(token, process.env.SECRET_KEY_JWT)
-const user = await User.findById(decoded.id)
-if(!user){
-    res.json("Not authenticated")
-}else{
-     mandarle los datos para que logee
-}
-*/
+        
+        return
+    }
+})
 
 
 module.exports = router
